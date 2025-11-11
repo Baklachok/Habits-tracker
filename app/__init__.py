@@ -1,8 +1,8 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from flasgger import Swagger
 import os
 
-db = SQLAlchemy()
+from app.extentions import db
 
 
 def create_app():
@@ -13,10 +13,18 @@ def create_app():
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    # Swagger
+    app.config["SWAGGER"] = {"title": "Flask MySQL API", "uiversion": 3}
+    swagger = Swagger(app)
+
     db.init_app(app)
 
-    @app.route("/")
-    def hello():
-        return "Hello, Flask + MySQL + Poetry!"
+    from .models import User
+    from .routes import user_bp
+
+    app.register_blueprint(user_bp, url_prefix="/api")
+
+    with app.app_context():
+        db.create_all()
 
     return app
