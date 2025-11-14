@@ -22,3 +22,6 @@ class User(BaseModel):
     def check_password(self, password: str) -> bool:
         """Проверяет пароль пользователя."""
         return check_password_hash(self.password_hash, password)
+
+    def to_dict(self):
+        return {"id": self.id, "email": self.email}

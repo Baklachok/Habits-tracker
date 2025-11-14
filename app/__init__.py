@@ -1,8 +1,9 @@
 from flask import Flask
-from flasgger import Swagger
 import os
 
-from app.extentions import db
+from flask_smorest import Api
+
+from app.extentions import db, jwt
 
 
 def create_app():
@@ -13,16 +14,48 @@ def create_app():
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Swagger
-    app.config["SWAGGER"] = {"title": "Flask MySQL API", "uiversion": 3}
-    swagger = Swagger(app)
+    # JWT конфиг
+    app.config["JWT_SECRET_KEY"] = os.environ.get(
+        "JWT_SECRET_KEY", "dev-secret"
+    )  # в проде — сильный секрет
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = int(
+        os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_SECONDS", 900)
+    )
+
+    # API Docs — smorest
+    app.config["API_TITLE"] = "Flask MySQL API"
+    app.config["API_VERSION"] = "v1"
+    app.config["OPENAPI_VERSION"] = "3.1.0"
+    app.config["OPENAPI_URL_PREFIX"] = "/"
+    app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
+    app.config["OPENAPI_SWAGGER_UI_URL"] = (
+        "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
+    )
+
+    app.config["API_SPEC_OPTIONS"] = {
+        "components": {
+            "securitySchemes": {
+                "BearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                }
+            }
+        },
+        "security": [{"BearerAuth": []}],
+    }
 
     db.init_app(app)
+    jwt.init_app(app)
 
-    from .models import User
-    from .routes import user_bp
+    api = Api(app)
 
-    app.register_blueprint(user_bp, url_prefix="/api")
+    from .routes import user_blp
+    from .auth_routes import auth_blp
+
+    # register blueprints
+    api.register_blueprint(auth_blp)
+    api.register_blueprint(user_blp)
 
     with app.app_context():
         db.create_all()
