@@ -1,9 +1,8 @@
 from flask import abort
 from flask_smorest import Blueprint
-from marshmallow import Schema, fields
 
 from app import db
-from app.models import User
+
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -12,30 +11,14 @@ from flask_jwt_extended import (
 )
 import os
 
+from app.models.user import User
+from app.schemas.user import RegisterSchema, UserSchema, LoginSchema
+
 auth_blp = Blueprint("Auth", "auth", url_prefix="/auth")
 
 ACCESS_EXPIRES = int(
     os.environ.get("JWT_ACCESS_EXPIRES_SECONDS", 900)
 )  # default 15 min
-
-
-# ====== SCHEMAS ======
-class RegisterSchema(Schema):
-    email = fields.Email(required=True)
-    password = fields.Str(required=True)
-
-
-class LoginSchema(Schema):
-    email = fields.Email(required=True)
-    password = fields.Str(required=True)
-
-
-class UserSchema(Schema):
-    id = fields.Int()
-    email = fields.Email()
-
-
-# ====== ROUTES ======
 
 
 @auth_blp.route("/register", methods=["POST"])

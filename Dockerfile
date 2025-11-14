@@ -13,15 +13,22 @@ ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-# Копируем файлы проекта
+# Копируем только файлы зависимостей
 COPY pyproject.toml poetry.lock ./
 
 # Устанавливаем зависимости через Poetry без установки текущего проекта
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
+# Копируем весь проект
 COPY app ./app
+
+# Устанавливаем переменные среды для Flask
+ENV FLASK_APP=app.main
+ENV FLASK_ENV=development
+ENV FLASK_RUN_HOST=0.0.0.0
 
 EXPOSE 5000
 
-CMD ["python", "-m", "app.main"]
+# Запуск с autoreload
+CMD ["flask", "run", "--reload"]

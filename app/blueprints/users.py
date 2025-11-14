@@ -1,21 +1,7 @@
 from flask_smorest import Blueprint
-from marshmallow import Schema, fields
 
-from app.models import User
-
-
-# ====== SCHEMAS ======
-
-
-class UserSchema(Schema):
-    id = fields.Int(dump_only=True)
-    email = fields.Email(required=True)
-
-
-class CreateUserSchema(Schema):
-    email = fields.Email(required=True)
-    password = fields.Str(required=True)
-
+from app.models.user import User
+from app.schemas.user import UserSchema
 
 # ====== BLUEPRINT ======
 

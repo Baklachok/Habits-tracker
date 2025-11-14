@@ -3,6 +3,7 @@ import os
 
 from flask_smorest import Api
 
+
 from app.extentions import db, jwt
 
 
@@ -50,12 +51,14 @@ def create_app():
 
     api = Api(app)
 
-    from .routes import user_blp
-    from .auth_routes import auth_blp
+    from .blueprints.auth import auth_blp
+    from .blueprints.habits import habit_blp
+    from .blueprints.users import user_blp
 
     # register blueprints
     api.register_blueprint(auth_blp)
     api.register_blueprint(user_blp)
+    api.register_blueprint(habit_blp, url_prefix="/habits")
 
     with app.app_context():
         db.create_all()
