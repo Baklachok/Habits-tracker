@@ -1,10 +1,13 @@
+
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app import db
 from app.models.habit import Habit
+from app.models.habit_log import HabitLog
 from app.schemas.habit import HabitSchema, HabitCreateSchema, HabitQuerySchema
+from app.schemas.habit_stats import HabitStatsSchema
 
 habit_blp = Blueprint("habits", __name__, description="CRUD operations for habits")
 
@@ -66,3 +69,31 @@ class HabitResource(MethodView):
         db.session.delete(habit)
         db.session.commit()
         return "", 204
+
+
+@habit_blp.route("/<int:habit_id>/stats")
+class HabitStatsResource(MethodView):
+    @habit_blp.response(200, HabitStatsSchema)
+    @jwt_required()
+    def get(self, habit_id):
+        """Return progress statistics for a habit"""
+        user_id = int(get_jwt_identity())
+
+        habit = Habit.query.filter_by(id=habit_id, user_id=user_id).first_or_404()
+
+        logs = (
+            HabitLog.query.filter_by(habit_id=habit.id, user_id=user_id)
+            .order_by(HabitLog.date.asc())
+            .all()
+        )
+
+        from app.services.habit_stats import (
+            calculate_streak,
+            calculate_completion_rate,
+        )
+
+        return {
+            "habit_id": habit.id,
+            "streak": calculate_streak(logs),
+            "completion_rate": calculate_completion_rate(logs),
+        }
