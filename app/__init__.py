@@ -54,11 +54,13 @@ def create_app():
     from .blueprints.auth import auth_blp
     from .blueprints.habits import habit_blp
     from .blueprints.users import user_blp
+    from .blueprints.habit_log import habit_log_blp
 
     # register blueprints
     api.register_blueprint(auth_blp)
     api.register_blueprint(user_blp)
     api.register_blueprint(habit_blp, url_prefix="/habits")
+    api.register_blueprint(habit_log_blp)
 
     with app.app_context():
         db.create_all()
