@@ -4,20 +4,24 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app import db
 from app.models.habit import Habit
-from app.schemas.habit import HabitSchema, HabitCreateSchema
+from app.schemas.habit import HabitSchema, HabitCreateSchema, HabitQuerySchema
 
 habit_blp = Blueprint("habits", __name__, description="CRUD operations for habits")
 
 
 @habit_blp.route("/")
 class HabitListResource(MethodView):
+    @habit_blp.arguments(HabitQuerySchema, location="query")
     @habit_blp.response(200, HabitSchema(many=True))
     @jwt_required()
-    def get(self):
+    def get(self, query_params):
         """Get all habits for current user"""
         user_id = int(get_jwt_identity())
-        habits = Habit.query.filter_by(user_id=user_id).all()
-        return habits
+        frequency = query_params.get("frequency")
+        habits = Habit.query.filter_by(user_id=user_id)
+        if frequency:
+            habits = habits.filter_by(frequency=frequency)
+        return habits.all()
 
     @habit_blp.arguments(HabitCreateSchema)
     @habit_blp.response(201, HabitSchema)

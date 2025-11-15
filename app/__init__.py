@@ -4,10 +4,14 @@ import os
 from flask_smorest import Api
 
 
-from app.extentions import db, jwt
+from app.extentions import db, jwt, migrate
 
 
 def create_app():
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     app = Flask(__name__)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -47,6 +51,7 @@ def create_app():
     }
 
     db.init_app(app)
+    migrate.init_app(app, db)
     jwt.init_app(app)
 
     api = Api(app)
@@ -61,8 +66,5 @@ def create_app():
     api.register_blueprint(user_blp)
     api.register_blueprint(habit_blp, url_prefix="/habits")
     api.register_blueprint(habit_log_blp)
-
-    with app.app_context():
-        db.create_all()
 
     return app

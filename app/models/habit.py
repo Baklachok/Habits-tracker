@@ -14,6 +14,11 @@ class Habit(BaseModel):
     user_id: Mapped[int] = mapped_column(db.ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(String(1024), nullable=True)
+    frequency: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="daily",  # "daily" или "weekly"
+    )
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow
