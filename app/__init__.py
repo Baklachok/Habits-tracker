@@ -7,16 +7,34 @@ from flask_smorest import Api
 from app.extentions import db, jwt, migrate
 
 
-def create_app():
+def create_app(testing: bool = False):
     from dotenv import load_dotenv
 
     load_dotenv()
 
     app = Flask(__name__)
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"mysql+pymysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD')}@{os.environ.get('MYSQL_HOST')}:{os.environ.get('MYSQL_PORT')}/{os.environ.get('MYSQL_DATABASE')}"
-    )
+    if testing:
+        # ------------------------------
+        # TEST CONFIG
+        # ------------------------------
+        app.config["TESTING"] = True
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "connect_args": {"check_same_thread": False}
+        }
+        app.config["JWT_SECRET_KEY"] = "test-secret-key"
+    else:
+        # ------------------------------
+        # PROD/DEV CONFIG (MySQL)
+        # ------------------------------
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            f"mysql+pymysql://{os.environ.get('MYSQL_USER')}:"
+            f"{os.environ.get('MYSQL_PASSWORD')}@"
+            f"{os.environ.get('MYSQL_HOST')}:"
+            f"{os.environ.get('MYSQL_PORT')}/"
+            f"{os.environ.get('MYSQL_DATABASE')}"
+        )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # JWT конфиг

@@ -26,3 +26,9 @@ class User(BaseModel):
 
     def to_dict(self):
         return {"id": self.id, "email": self.email}
+
+    @staticmethod
+    def set_password_static(password):
+        u = User()
+        u.set_password(password)
+        return u.password_hash

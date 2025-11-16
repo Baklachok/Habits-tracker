@@ -45,10 +45,10 @@ class HabitLogResource(MethodView):
         log = HabitLog.query.filter_by(id=log_id, user_id=user_id).first_or_404()
         return log
 
-    @habit_log_blp.arguments(HabitLogSchema)
+    @habit_log_blp.arguments(HabitLogSchema(partial=True))
     @habit_log_blp.response(200, HabitLogSchema)
     @jwt_required()
-    def put(self, updated_data, log_id):
+    def patch(self, updated_data, log_id):
         """Обновить лог"""
         user_id = get_jwt_identity()
         log = HabitLog.query.filter_by(id=log_id, user_id=user_id).first_or_404()

@@ -1,4 +1,3 @@
-
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -51,7 +50,7 @@ class HabitResource(MethodView):
     @habit_blp.arguments(HabitCreateSchema)
     @habit_blp.response(200, HabitSchema)
     @jwt_required()
-    def put(self, update_data, habit_id):
+    def patch(self, update_data, habit_id):
         """Update habit by id"""
         user_id = int(get_jwt_identity())
         habit = Habit.query.filter_by(id=habit_id, user_id=user_id).first_or_404()
