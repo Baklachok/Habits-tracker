@@ -1,10 +1,56 @@
-from flask import Flask
-import os
-
+import logging
+from flask import Flask, request
 from flask_smorest import Api
 
-
+from app.config import configure_base, configure_database
 from app.extentions import db, jwt, migrate
+
+
+# ============================================================
+# ЛОГИРОВАНИЕ
+# ============================================================
+
+
+def setup_logging(app: Flask):
+    """Configure logging for the application."""
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    )
+
+    handler = logging.FileHandler("app.log")
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.INFO)
+
+    app.logger.addHandler(handler)
+    app.logger.setLevel(logging.INFO)
+
+
+# ============================================================
+# МИДЛВАРЫ
+# ============================================================
+
+
+def setup_middlewares(app: Flask):
+    @app.before_request
+    def log_request():
+        app.logger.info(
+            "Request: method=%s, path=%s, args=%s",
+            request.method,
+            request.path,
+            request.args.to_dict(),
+        )
+
+    @app.after_request
+    def log_response(response):
+        app.logger.info(
+            "Response: status=%s, length=%s", response.status, response.content_length
+        )
+        return response
+
+
+# ============================================================
+# APP FACTORY
+# ============================================================
 
 
 def create_app(testing: bool = False):
@@ -14,64 +60,20 @@ def create_app(testing: bool = False):
 
     app = Flask(__name__)
 
-    if testing:
-        # ------------------------------
-        # TEST CONFIG
-        # ------------------------------
-        app.config["TESTING"] = True
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "connect_args": {"check_same_thread": False}
-        }
-        app.config["JWT_SECRET_KEY"] = "test-secret-key"
-    else:
-        # ------------------------------
-        # PROD/DEV CONFIG (MySQL)
-        # ------------------------------
-        app.config["SQLALCHEMY_DATABASE_URI"] = (
-            f"mysql+pymysql://{os.environ.get('MYSQL_USER')}:"
-            f"{os.environ.get('MYSQL_PASSWORD')}@"
-            f"{os.environ.get('MYSQL_HOST')}:"
-            f"{os.environ.get('MYSQL_PORT')}/"
-            f"{os.environ.get('MYSQL_DATABASE')}"
-        )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Logging
+    setup_logging(app)
+    app.logger.info("Starting Flask app (testing=%s)", testing)
 
-    # JWT конфиг
-    app.config["JWT_SECRET_KEY"] = os.environ.get(
-        "JWT_SECRET_KEY", "dev-secret"
-    )  # в проде — сильный секрет
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = int(
-        os.environ.get("JWT_ACCESS_TOKEN_EXPIRES_SECONDS", 900)
-    )
+    # Config
+    configure_base(app)
+    configure_database(app, testing)
 
-    # API Docs — smorest
-    app.config["API_TITLE"] = "Flask MySQL API"
-    app.config["API_VERSION"] = "v1"
-    app.config["OPENAPI_VERSION"] = "3.1.0"
-    app.config["OPENAPI_URL_PREFIX"] = "/"
-    app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
-    app.config["OPENAPI_SWAGGER_UI_URL"] = (
-        "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
-    )
-
-    app.config["API_SPEC_OPTIONS"] = {
-        "components": {
-            "securitySchemes": {
-                "BearerAuth": {
-                    "type": "http",
-                    "scheme": "bearer",
-                    "bearerFormat": "JWT",
-                }
-            }
-        },
-        "security": [{"BearerAuth": []}],
-    }
-
+    # Init extensions
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
+    # API + Blueprints
     api = Api(app)
 
     from .blueprints.auth import auth_blp
@@ -79,10 +81,14 @@ def create_app(testing: bool = False):
     from .blueprints.users import user_blp
     from .blueprints.habit_log import habit_log_blp
 
-    # register blueprints
     api.register_blueprint(auth_blp)
     api.register_blueprint(user_blp)
     api.register_blueprint(habit_blp, url_prefix="/habits")
     api.register_blueprint(habit_log_blp)
+
+    app.logger.info("Blueprints registered")
+
+    # Middlewares
+    setup_middlewares(app)
 
     return app
