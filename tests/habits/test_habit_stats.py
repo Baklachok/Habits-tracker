@@ -1,60 +1,53 @@
 from datetime import date, timedelta
 
-import pytest
+from app.models.habit import Habit
+from app.models.habit_log import HabitLog
+from app.services.habit_stats import get_habit_statistics
 
-from tests.factories import HabitFactory, HabitLogFactory
-from tests.helpers import auth_headers
+
+def test_get_habit_statistics(db, user, habit, habit_logs):
+    stats = get_habit_statistics(habit.id, user.id)
+
+    assert stats["total_days"] == 5
+    assert stats["completed_days"] == 4
+    assert stats["completion_rate"] == 80.0
+    assert stats["streak"] == 2  # максимальная серия подряд выполненных дней
 
 
-def test_stats_no_logs(client, db, user_token):
-    habit = HabitFactory()
+def test_habit_with_no_logs(db, user):
+    h = Habit(name="Empty Habit", user_id=user.id)
+    db.session.add(h)
     db.session.commit()
 
-    resp = client.get(
-        f"/habits/{habit.id}/stats",
-        headers=auth_headers(user_token),
-    )
-
-    data = resp.get_json()
-    assert resp.status_code == 200
-    assert data["streak"] == 0
-    assert data["completion_rate"] == 0.0
+    stats = get_habit_statistics(h.id, user.id)
+    assert stats == {
+        "total_days": 0,
+        "completed_days": 0,
+        "completion_rate": 0.0,
+        "streak": 0,
+    }
 
 
-def test_stats_with_logs(client, db, user_token):
-    habit = HabitFactory()
+def test_habit_all_completed(db, user):
+    h = Habit(name="Perfect Habit", user_id=user.id)
+    db.session.add(h)
     db.session.commit()
 
-    # День 1 — выполнено
-    HabitLogFactory(
-        habit_id=habit.id,
-        date=date.today(),
-        completed=True,
-    )
-
-    # День 2 — выполнено (вчера)
-    HabitLogFactory(
-        habit_id=habit.id,
-        date=date.today() - timedelta(days=1),
-        completed=True,
-    )
-
-    # День 3 — не выполнено (2 дня назад)
-    HabitLogFactory(
-        habit_id=habit.id,
-        date=date.today() - timedelta(days=2),
-        completed=False,
-    )
-
+    today = date.today()
+    logs = [
+        HabitLog(
+            user_id=user.id,
+            habit_id=h.id,
+            date=today - timedelta(days=i),
+            completed=True,
+        )
+        for i in range(7)
+    ]
+    db.session.add_all(logs)
     db.session.commit()
 
-    resp = client.get(
-        f"/habits/{habit.id}/stats",
-        headers=auth_headers(user_token),
-    )
-
-    data = resp.get_json()
-
-    assert resp.status_code == 200
-    assert data["streak"] == 2  # последние 2 дня completed=True
-    assert data["completion_rate"] == pytest.approx(66.67, 0.1)
+    stats = get_habit_statistics(h.id, user.id)
+    assert stats["total_days"] == 7
+    assert stats["completed_days"] == 7
+    assert stats["completion_rate"] == 100.0
+    assert stats["streak"] == 7

@@ -1,13 +1,22 @@
 import pytest
+
 from app import create_app, db as _db
-from flask_jwt_extended import create_access_token
 
 
+pytest_plugins = [
+    "tests.fixtures.users",
+    "tests.fixtures.habits",
+    "tests.fixtures.logs",
+]
+
+
+# ===============================
+# Application fixture
+# ===============================
 @pytest.fixture(scope="session")
 def app():
+    """Create and configure a Flask app instance for testing."""
     app = create_app(testing=True)
-
-    # Подменяем БД на SQLite in-memory
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     app.config["TESTING"] = True
 
@@ -16,14 +25,16 @@ def app():
 
     yield app
 
-    # teardown (session)
     with app.app_context():
         _db.drop_all()
 
 
+# ===============================
+# Database fixtures
+# ===============================
 @pytest.fixture(autouse=True)
 def clean_db(db):
-    """Очистка всех таблиц перед каждым тестом"""
+    """Clean all tables before each test."""
     db.session.remove()
     for table in reversed(db.metadata.sorted_tables):
         db.session.execute(table.delete())
@@ -39,21 +50,10 @@ def db(app):
         _db.session.rollback()
 
 
+# ===============================
+# Test client fixture
+# ===============================
 @pytest.fixture()
 def client(app):
+    """Flask test client."""
     return app.test_client()
-
-
-@pytest.fixture()
-def user_token(app, db):
-    """Create a user and return JWT token."""
-    from app.models.user import User
-
-    user = User(email="test@example.com")
-    user.set_password("password123")
-    db.session.add(user)
-    db.session.commit()
-
-    token = create_access_token(identity=str(user.id))
-
-    return token

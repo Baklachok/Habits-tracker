@@ -80,11 +80,13 @@ def create_app(testing: bool = False):
     from .blueprints.habits import habit_blp
     from .blueprints.users import user_blp
     from .blueprints.habit_log import habit_log_blp
+    from .blueprints.statistics import statistics_blp
 
     api.register_blueprint(auth_blp)
     api.register_blueprint(user_blp)
     api.register_blueprint(habit_blp, url_prefix="/habits")
     api.register_blueprint(habit_log_blp)
+    api.register_blueprint(statistics_blp)
 
     app.logger.info("Blueprints registered")
 
