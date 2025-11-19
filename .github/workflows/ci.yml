@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql+pymysql://test:test@127.0.0.1:3306/test_db
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y default-mysql-client
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Wait for MySQL
+        run: |
+          echo "Waiting for MySQL..."
+          until mysqladmin ping -h 127.0.0.1 --silent; do
+            sleep 2
+          done
+          echo "MySQL ✔"
+
+      - name: Lint (ruff)
+        run: poetry run ruff check .
+
+      - name: Type-check (mypy)
+        run: poetry run mypy .
+
+      - name: Run tests
+        run: |
+          if [ -d "migrations" ]; then poetry run alembic upgrade head; fi
+          poetry run pytest -q
